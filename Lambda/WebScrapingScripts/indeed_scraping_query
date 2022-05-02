@@ -1,0 +1,96 @@
+import json
+import boto3
+import requests
+from bs4 import BeautifulSoup
+
+#verifying type of job
+keys = ['co-op','intern','internship','coop']
+keys2=['software','computer','developer']
+
+
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('Jobs')
+
+
+def put_item(Company, Discipline, City, Job_Title, Level, Link):
+    ###adding item to Jobs table in DynamoDB
+    response = table.put_item(
+       Item={
+            'JobTitle_Company': Job_Title + '_' + Company,
+            'Company': Company,
+            'Discipline_City':Discipline + '_' + City,
+            'Discipline' : Discipline,
+            'City': City,
+            'Job Title': Job_Title,
+            'Level' : Level,
+            'Link': Link
+        }
+    )
+
+    
+def extract(type, city, page):
+
+    headers = {
+        'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/99.0.4844.51 Safari/537.36'
+    }
+    indeed_softwaredeveloper_URL = f'https://ca.indeed.com/jobs?q={type}&l={city}&start={page}'
+    r = requests.get(indeed_softwaredeveloper_URL, headers)
+    soup = BeautifulSoup(r.content, 'html.parser')
+    return soup
+
+def transform(soup):
+    i = 0
+    url = []
+    #planning to write a if-else statement that read title and check if it said 'software developer etc'-software discipline or 'power engnieer etc' - hardware discipline
+    #level = 'full-time'  #planning to write a if-else statement that read title and check if it said 'coop' or 'intern' to declare it as intern-level
+    for EachPart in soup.select('a[class*="tapItem fs-unmask result job"]'):
+        (EachPart.get_text())
+        part = EachPart['href']
+        url.append('ca.indeed.com' + part)
+        #i=i+1
+    
+    
+    divs = soup.find_all('div', class_='job_seen_beacon')
+    #i=0
+    for item in divs:
+        title = item.find('h2').text
+        if 'new' in title:
+            title = title.replace('new','')
+        title = title.title()
+        company = item.find('span', class_='companyName').text
+        company = company.title()
+        companylocation = item.find('div', class_='companyLocation').text
+        if (any(key in title.lower() for key in keys)):
+            level = 'intern'
+        else:
+            level = 'Full-time'
+        if (any(key in title.lower() for key in keys2)):
+            discipline = 'software'
+        else:
+            discipline = 'hardware'
+        put_item(company, discipline, 'Toronto', title, level, url[i])
+        i = i + 1
+    
+        if i > 3:
+            break
+    
+    return url
+
+
+def lambda_handler(event, context):
+        #Test categories for bot
+    c = extract('software%20developer%20new%20grad','toronto', 0)
+    x = transform(c)
+    
+    c = extract('hardware%20engineer%20intern', 'toronto', 0)
+    x = transform(c)
+    
+    c = extract('hardware%20engineer%20new%20grad', 'toronto', 0)
+    x = transform(c)
+
+  
+    return {
+        'statusCode': 200,
+        'body': json.dumps(x)
+    }
