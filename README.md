@@ -7,6 +7,8 @@ For our CPS888 final project, we build an Amazon Lex chatbot that would intellig
 
 Below is our planning architecture implementation. 
 
+![alt text](https://github.com/Ryerson4thYearGroup/ECECareerBot/blob/main/planned_architecture.png.png)
+
 Due to time constraints during the course, we were unable to complete the Discord integration so it is not included in this repository. 
 
 
